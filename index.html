@@ -1,0 +1,1310 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Gettysburg, the Third Day</title>
+<style>
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #2a2a3a; }
+  canvas { display: block; }
+  .hud { position: fixed; font: 500 13px/1.2 system-ui, -apple-system, "Segoe UI", sans-serif; color: rgba(250, 240, 214, 0.7); letter-spacing: 0.02em; pointer-events: none; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.45); }
+  #caption { left: 16px; bottom: 14px; }
+  #fps { right: 16px; top: 14px; text-align: right; font-variant-numeric: tabular-nums; }
+  #nametag { position: fixed; left: 0; top: 0; transform: translate(-50%, -100%); pointer-events: none; opacity: 0; transition: opacity 0.35s ease; text-align: center; max-width: min(560px, 80vw); }
+  #nametag .kind { font: 700 12px/1 Georgia, serif; color: #f0d48a; letter-spacing: 0.22em; text-transform: uppercase; margin-bottom: 5px; text-shadow: 0 1px 3px rgba(0, 0, 0, 0.85); }
+  #nametag .n { display: inline-block; font: 600 22px/1.15 Georgia, 'Palatino Linotype', serif; color: #fdf6e2; letter-spacing: 0.03em; padding: 7px 16px 6px; border-radius: 999px; background: rgba(40, 34, 30, 0.74); border: 1px solid rgba(240, 212, 138, 0.75); box-shadow: 0 2px 10px rgba(0, 0, 0, 0.35); white-space: nowrap; }
+  #nametag .r { font: italic 16px/1.3 Georgia, serif; color: #fbf1d6; margin-top: 6px; text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9), 0 0 8px rgba(0, 0, 0, 0.5); text-wrap: balance; }
+  #nametag .t { font: 14px/1.3 Georgia, serif; color: #f0e2bc; margin-top: 4px; text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9), 0 0 8px rgba(0, 0, 0, 0.5); text-wrap: balance; }
+  #nametag .tip { width: 0; height: 0; margin: 4px auto 0; border: 7px solid transparent; border-top-color: rgba(240, 212, 138, 0.85); }
+  /* a line of text at the bottom of the screen for a big moment (ctx.blurb) */
+  #blurb { position: fixed; left: 50%; bottom: 7vh; transform: translateX(-50%); width: min(900px, 86vw); text-align: center; pointer-events: none; opacity: 0; font: italic 30px/1.35 Georgia, 'Palatino Linotype', serif; color: #fff6dc; text-shadow: 0 2px 12px rgba(60, 30, 0, 0.75), 0 0 3px rgba(0, 0, 0, 0.6); text-wrap: balance; }
+  #blurb small { display: block; margin-top: 8px; font: 600 16px/1 Georgia, serif; font-style: normal; letter-spacing: 0.2em; text-transform: uppercase; color: #f4d890; }
+  #home { position: fixed; left: 16px; top: 16px; width: 64px; height: 64px; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: rgba(255, 252, 244, 0.82); color: #2b2a26; box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3); z-index: 5; -webkit-tap-highlight-color: transparent; transition: transform 0.15s ease-out; }
+  #home:active { transform: scale(0.94); }
+  #home[hidden] { display: none; }
+  /* the story panel: the day's chapters at the top left, right of the home button (labels.js STORY) */
+  #story { position: fixed; left: 92px; top: 16px; width: min(392px, calc(100vw - 108px)); max-height: calc(100vh - 32px); z-index: 4; box-sizing: border-box; display: flex; flex-direction: column; padding: 12px 16px 12px; border-radius: 14px; background: rgba(40, 34, 30, 0.74); border: 1px solid rgba(240, 212, 138, 0.5); box-shadow: 0 2px 14px rgba(0, 0, 0, 0.35); color: #fdf6e2; font: 17px/1.3 Georgia, 'Palatino Linotype', serif; user-select: none; -webkit-user-select: none; touch-action: pan-y; -webkit-tap-highlight-color: transparent; }
+  #story[hidden] { display: none; }
+  .nohome #story { left: 16px; width: min(392px, calc(100vw - 32px)); }
+  #story .head { display: flex; align-items: center; gap: 10px; cursor: pointer; }
+  #story .head .t { flex: 1; font: 700 13px/1.25 Georgia, serif; color: #f0d48a; letter-spacing: 0.2em; text-transform: uppercase; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5); }
+  #story .head .t small { display: block; font: italic 13px/1.25 Georgia, serif; color: #e6d6ac; letter-spacing: 0.02em; text-transform: none; margin-top: 2px; }
+  #story .fold { flex: none; width: 30px; height: 30px; padding: 0; border-radius: 50%; border: 1px solid rgba(240, 212, 138, 0.55); background: rgba(240, 212, 138, 0.08); color: #f0d48a; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: transform 0.4s ease; }
+  #story .fold svg { display: block; }
+  #story.closed .fold { transform: rotate(180deg); }
+  #story .bar { flex: none; height: 2px; margin: 8px 0 5px; background: rgba(240, 212, 138, 0.22); border-radius: 1px; overflow: hidden; }
+  #story .bar i { display: block; height: 100%; background: #f0d48a; transform-origin: 0 50%; transform: scaleX(0); }
+  #story ol { list-style: none; margin: 0; padding: 0; overflow-y: auto; overscroll-behavior: contain; min-height: 0; }
+  #story li { display: grid; grid-template-rows: 1fr; cursor: pointer; transition: grid-template-rows 0.6s ease, opacity 0.6s ease; }
+  #story li > div { overflow: hidden; min-height: 0; }
+  #story li .row { position: relative; padding: 2px 0 2px 24px; color: rgba(253, 246, 226, 0.5); transition: color 0.5s ease; }
+  #story li.past .row { color: rgba(253, 246, 226, 0.68); }
+  #story li.now .row { color: #fff3d2; }
+  #story li .title { display: block; font-size: 18px; line-height: 1.22; }
+  #story li .dot { position: absolute; left: 4px; top: 9px; width: 9px; height: 9px; border-radius: 50%; box-sizing: border-box; border: 1.5px solid rgba(240, 212, 138, 0.55); transition: background 0.5s ease, border-color 0.5s ease, box-shadow 0.5s ease; }
+  #story li.past .dot { background: rgba(240, 212, 138, 0.6); border-color: rgba(240, 212, 138, 0.6); }
+  #story li.now .dot { background: #ffe9a6; border-color: #ffe9a6; box-shadow: 0 0 8px 2px rgba(255, 225, 150, 0.55); }
+  #story li .more { display: grid; grid-template-rows: 0fr; opacity: 0; transition: grid-template-rows 0.6s ease, opacity 0.6s ease; }
+  #story li.open .more { grid-template-rows: 1fr; opacity: 1; }
+  #story li .more > div { overflow: hidden; min-height: 0; }
+  #story li .text { margin: 2px 0 0; font-size: 15px; line-height: 1.32; color: #f6ecd2; text-wrap: pretty; }
+  #story li .ref { margin: 3px 0 5px; font: italic 13px/1.28 Georgia, serif; color: #e6d6ac; text-wrap: pretty; }
+  /* the recorder steps the clock frame by frame, so CSS transitions never finish: open chapters snap instead */
+  .capture #story li, .capture #story li .more, .capture #story li .row, .capture #story li .dot { transition: none !important; }
+  #story.closed li:not(.lead) { grid-template-rows: 0fr; opacity: 0; pointer-events: none; }
+  /* the two view buttons at the bottom right: Fly (the bird's view) and Soldier's eye (walk round at a soldier's height) */
+  #views { position: fixed; right: 16px; bottom: 16px; display: flex; gap: 10px; z-index: 5; }
+  #views button { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; width: 92px; height: 74px; border-radius: 16px; border: 1px solid rgba(240, 212, 138, 0.6); background: rgba(40, 34, 30, 0.74); color: #fdf6e2; font: 600 14px/1.1 Georgia, serif; cursor: pointer; box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3); -webkit-tap-highlight-color: transparent; transition: transform 0.15s ease-out, background 0.3s ease; }
+  #views button svg { display: block; }
+  #views button:active { transform: scale(0.95); }
+  #views button.on { background: rgba(240, 212, 138, 0.92); color: #2b2a26; }
+  #viewhint { position: fixed; left: 50%; bottom: 22px; transform: translateX(-50%); font: italic 16px/1.3 Georgia, serif; color: #fff6dc; text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9); pointer-events: none; opacity: 0; transition: opacity 0.6s ease; text-align: center; }
+  @media (max-width: 899px) {
+    #story { padding: 10px 14px 10px; }
+    #story .head .t { font-size: 12px; letter-spacing: 0.14em; }
+    #story .head .t small .x { display: none; }
+    #story li .title { font-size: 17px; }
+    #story li .text { font-size: 15px; }
+  }
+</style>
+</head>
+<body>
+<div id="caption" class="hud">Gettysburg · July 3, 1863 · the cannonade and the great charge · tap for sound</div>
+<div id="fps" class="hud">-- fps</div>
+<a id="home" href="/" aria-label="Back to the hub" hidden><svg width="30" height="30" viewBox="0 0 256 256" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="20" stroke-linecap="round" stroke-linejoin="round" d="M152 208v-56a8 8 0 0 0-8-8h-32a8 8 0 0 0-8 8v56H48a8 8 0 0 1-8-8v-84.5a8 8 0 0 1 2.6-5.9l80-72.7a8 8 0 0 1 10.8 0l80 72.7a8 8 0 0 1 2.6 5.9V200a8 8 0 0 1-8 8Z"/></svg></a>
+<!-- the house button back to the hub; ?home=0 leaves it off (for showing the scene on its own) -->
+<script>if (location.protocol !== 'file:' && new URLSearchParams(location.search).get('home') === '1') document.getElementById('home').hidden = false; else document.documentElement.classList.add('nohome'); if (new URLSearchParams(location.search).has('capture') || new URLSearchParams(location.search).has('record')) document.documentElement.classList.add('capture');</script>
+<div id="nametag"><div class="kind"></div><div class="n"></div><div class="r"></div><div class="t"></div><div class="tip"></div></div>
+<div id="story" hidden><div class="head"><div class="t">Gettysburg, July 3, 1863<small>Haskell's letter and the official reports<span class="x"> · a day in three minutes</span></small></div><button class="fold" type="button" aria-label="Collapse the story"><svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" d="M5 15l7-7 7 7"/></svg></button></div><div class="bar"><i></i></div><ol></ol></div>
+<div id="blurb"><span></span><small></small></div>
+<div id="views">
+  <button id="vFly" type="button" class="on" aria-label="Fly: look down on the whole battlefield"><svg width="28" height="28" viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M2 12c3-3 6-4 10 0 4-4 7-3 10 0M7 10.5 5 7M17 10.5 19 7"/></svg>Fly</button>
+  <button id="vEye" type="button" aria-label="Soldier's eye: walk round at a soldier's height"><svg width="28" height="28" viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M2 12s3.6-6 10-6 10 6 10 6-3.6 6-10 6S2 12 2 12Z"/><circle cx="12" cy="12" r="2.6" fill="currentColor"/></svg>Soldier's eye</button>
+</div>
+<div id="viewhint"></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="kit/motion.js"></script>
+<script src="kit/figures.js"></script>
+<script src="kit/blocky.js"></script>
+<script src="labels.js"></script>
+<!-- the characters (window.CHARACTERS), shared by people.js and armies.js -->
+<script src="characters/union.js"></script>
+<script src="characters/csa.js"></script>
+<script src="characters/gunner.js"></script>
+<script src="characters/officer.js"></script>
+<script src="characters/haskell.js"></script>
+<script src="characters/horse.js"></script>
+<script>
+// The base of a scene (scene-studio/template). Terrain, far hills, sky, the light through a day, haze, wind, the camera
+// and steering, tapping people and places (labels and small tapped moments), lamps, soft shadows, and the plug-in API.
+// The plug-ins build everything else, one file each (see the scene's DESIGN.md). Sections marked EDIT are the ones
+// each scene changes: the palette, the land, the spots, the cycle, the camera.
+(function () {
+  'use strict';
+
+  // ---------- switches ----------
+  // ?time=day|dusk|night holds the light (default: the 3-minute cycle). ?t0=seconds starts the clock there.
+  // ?tour=1 glides between five framed views. ?cam=x,y,z,tx,ty,tz pins the camera. ?res=0.75 renders at that
+  // fraction of the screen's resolution (the Pi uses 0.75). ?shadows=1 turns on the sun's shadow map (off by default).
+  // ?only=buildings,people shows only those plug-ins (for checking one at a time). ?capture is for the video recorder.
+  const params = new URLSearchParams(location.search);
+  const SHADOWS = params.get('shadows') === '1';
+  const TOUR = params.get('tour') === '1';
+  const TIME = params.get('time') || 'cycle';
+  const CAM = params.has('cam') ? params.get('cam').split(',').map(Number) : null;
+  const RES = Math.min(1, Number(params.get('res')) || 1);
+  const ONLY = params.has('only') ? params.get('only').split(',') : null;
+
+  function mulberry32(a) {
+    return function () {
+      a |= 0; a = a + 0x6D2B79F5 | 0;
+      let t = Math.imul(a ^ a >>> 15, 1 | a);
+      t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+      return ((t ^ t >>> 14) >>> 0) / 4294967296;
+    };
+  }
+  const rand = mulberry32(20261107);
+  const rr = (a, b) => a + (b - a) * rand();
+  const v = (x, y, z) => new THREE.Vector3(x, y, z);
+  const TAU = Math.PI * 2;
+  const clamp01 = (x) => Math.min(1, Math.max(0, x));
+  const smooth01 = (x) => { const c = clamp01(x); return c * c * (3 - 2 * c); };
+  const lerpN = (a, b, p) => a + (b - a) * p;
+  const easeInOut = (p) => (p < 0.5 ? 4 * p * p * p : 1 - Math.pow(-2 * p + 2, 3) / 2);
+  // Colours are picked in sRGB (the palette in DESIGN.md 1) and the page renders with sRGB output and ACES tone
+  // mapping, so every colour goes in linear: lin(hex) for vertex colours and uniforms; mat() does it for you.
+  const lin = (hex) => new THREE.Color(hex).convertSRGBToLinear();
+
+  // EDIT: the palette from the scene's DESIGN.md (picked in sRGB; mat() and lin() make them linear).
+  const C = {
+    grass: 0x7a9840, grass2: 0x8ba046, dry: 0xa89a4e, wheat: 0xcfa846, earth: 0x9c7a48, road: 0xb89f72, rock: 0x9c9484, rockShade: 0x7a7266,
+    sand: 0xd8c89a, water: 0x5cc6c8, far: 0xa8a6b8, woods: 0x4f7a3a, woodsDark: 0x3f6430, wall: 0xa89e8a,
+    unionBlue: 0x3c4f86, unionSky: 0x7f97c4, csaGray: 0x9a9a90, butternut: 0xb49a6a, bronze: 0xc9a24a, carriage: 0x5f6b4a, smoke: 0xe8e2d6, flagRed: 0xb8382e,
+  };
+
+  // ---------- renderer, scene, camera ----------
+  const renderer = new THREE.WebGLRenderer({ antialias: true });
+  renderer.setPixelRatio(RES);
+  renderer.setSize(innerWidth, innerHeight);
+  renderer.outputEncoding = THREE.sRGBEncoding;
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1.02;
+  renderer.shadowMap.enabled = SHADOWS;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  document.body.appendChild(renderer.domElement);
+
+  const scene = new THREE.Scene();
+  const skyCanvas = document.createElement('canvas');
+  skyCanvas.width = 4; skyCanvas.height = 512;
+  const skyTex = new THREE.CanvasTexture(skyCanvas);
+  skyTex.encoding = THREE.sRGBEncoding;
+  function paintSky(top, mid, horizon) {
+    const c2 = skyCanvas.getContext('2d');
+    const g = c2.createLinearGradient(0, 0, 0, 512);
+    g.addColorStop(0, top); g.addColorStop(0.18, mid); g.addColorStop(0.36, horizon); g.addColorStop(1, horizon);
+    c2.fillStyle = g;
+    c2.fillRect(0, 0, 4, 512);
+    skyTex.needsUpdate = true;
+  }
+  paintSky('#4f8fd0', '#a8cdea', '#f3e2bf');
+  scene.background = skyTex;
+  const camera = new THREE.PerspectiveCamera(40, innerWidth / innerHeight, 0.5, 900);
+
+  // Sky-matched haze (as in Rivendell): distant things fade into the colour of the sky behind them, thicker low
+  // down, warm towards the sun. Every lit material gets it (the frame loop adds it to new ones).
+  const FOGU = { sky: { value: new THREE.Color() }, sunDir: { value: new THREE.Vector3(0, 0.1, -1) }, sunCol: { value: new THREE.Color() }, dens: { value: 0.0024 } };
+  THREE.ShaderChunk.fog_pars_vertex += '\n#ifdef USE_FOG\nvarying vec3 vFogWorld;\n#endif';
+  THREE.ShaderChunk.fog_vertex += '\n#if defined(USE_FOG) && defined(SKY_FOG)\n#ifdef USE_INSTANCING\nvFogWorld = (modelMatrix * instanceMatrix * vec4(transformed, 1.0)).xyz;\n#else\nvFogWorld = (modelMatrix * vec4(transformed, 1.0)).xyz;\n#endif\n#endif';
+  THREE.ShaderChunk.fog_pars_fragment += '\n#ifdef USE_FOG\nvarying vec3 vFogWorld;\n#ifdef SKY_FOG\nuniform vec3 uFogSky;\nuniform vec3 uSunDir;\nuniform vec3 uSunCol;\nuniform float uFogDens;\n#endif\n#endif';
+  THREE.ShaderChunk.fog_fragment = [
+    '#if defined(USE_FOG) && defined(SKY_FOG)',
+    '  vec3 fRay = vFogWorld - cameraPosition;',
+    '  float fDist = length(fRay);',
+    '  vec3 fDir = fRay / fDist;',
+    '  float fAmt = 1.0 - exp(-uFogDens * uFogDens * fDist * fDist);',
+    '  fAmt *= mix(1.0, 0.55, smoothstep(2.0, 30.0, vFogWorld.y));',
+    '  vec3 fCol = mix(fogColor, uFogSky, smoothstep(-0.02, 0.32, fDir.y));',
+    '  fCol += uSunCol * pow(max(dot(fDir, uSunDir), 0.0), 6.0);',
+    '  float fLum = dot(gl_FragColor.rgb, vec3(0.299, 0.587, 0.114));',
+    '  gl_FragColor.rgb = mix(gl_FragColor.rgb, mix(vec3(fLum), fCol, 0.3), clamp(fAmt * 0.7, 0.0, 1.0));',
+    '  gl_FragColor.rgb = mix(gl_FragColor.rgb, fCol, clamp(fAmt * 0.9, 0.0, 1.0));',
+    '#else',
+    THREE.ShaderChunk.fog_fragment,
+    '#endif',
+  ].join('\n');
+
+  // ---------- helpers (plug-ins get them on ctx) ----------
+  const matCache = new Map();
+  function mat(color, extra) {
+    const key = color + '|' + (extra ? JSON.stringify(extra) : '');
+    let m = matCache.get(key);
+    if (!m) {
+      m = new THREE.MeshStandardMaterial(Object.assign({ flatShading: true, roughness: 0.95, metalness: 0 }, extra));
+      if (color !== null && color !== undefined) m.color.copy(lin(color));
+      if (extra && extra.emissive !== undefined) m.emissive.copy(lin(extra.emissive));
+      matCache.set(key, m);
+    }
+    return m;
+  }
+  const basicCache = new Map();
+  function basic(color) {
+    let m = basicCache.get(color);
+    if (!m) { m = new THREE.MeshBasicMaterial({ color: lin(color) }); basicCache.set(color, m); }
+    return m;
+  }
+  function add(parent, geo, material, x, y, z, opt) {
+    const m = new THREE.Mesh(geo, material);
+    m.position.set(x || 0, y || 0, z || 0);
+    if (opt) {
+      if (opt.s !== undefined) { if (typeof opt.s === 'number') m.scale.setScalar(opt.s); else m.scale.set(opt.s[0], opt.s[1], opt.s[2]); }
+      if (opt.r) m.rotation.set(opt.r[0], opt.r[1], opt.r[2]);
+    }
+    m.castShadow = SHADOWS && !(opt && opt.noShadow);
+    m.receiveShadow = SHADOWS;
+    parent.add(m);
+    return m;
+  }
+  const UP = v(0, 1, 0);
+  function limb(parent, a, b, ra, rb, material, segs) {
+    const dir = new THREE.Vector3().subVectors(b, a), len = dir.length();
+    const m = new THREE.Mesh(new THREE.CylinderGeometry(rb, ra, len, segs || 6), material);
+    m.position.copy(a).add(b).multiplyScalar(0.5);
+    m.quaternion.setFromUnitVectors(UP, dir.normalize());
+    m.castShadow = SHADOWS; m.receiveShadow = SHADOWS;
+    parent.add(m);
+    return m;
+  }
+  function hash(x, y, z, s) { const h = Math.sin(x * 127.1 + y * 311.7 + z * 74.7 + s * 19.19) * 43758.5453; return h - Math.floor(h); }
+  function jitterGeo(g, amt, seed, filter) {
+    const p = g.attributes.position;
+    for (let i = 0; i < p.count; i++) {
+      const x = p.getX(i), y = p.getY(i), z = p.getZ(i);
+      if (filter && !filter(x, y, z)) continue;
+      const rx = Math.round(x * 1000) / 1000, ry = Math.round(y * 1000) / 1000, rz = Math.round(z * 1000) / 1000;
+      p.setXYZ(i, x + (hash(rx, ry, rz, seed) - 0.5) * amt, y + (hash(rx, ry, rz, seed + 1) - 0.5) * amt, z + (hash(rx, ry, rz, seed + 2) - 0.5) * amt);
+    }
+    p.needsUpdate = true;
+    g.computeVertexNormals();
+    return g;
+  }
+  // Bake every static mesh under `group` into one mesh per material. Children with userData.dynamic are skipped.
+  // Vertex colours survive the merge when every mesh of a material has them.
+  function mergeGroup(group, deep) {
+    group.updateMatrixWorld(true);
+    const inv = new THREE.Matrix4().copy(group.matrixWorld).invert();
+    const found = [];
+    (function walk(o) { for (const c of o.children) { if (c.userData.dynamic) continue; if (c.isMesh && !c.isInstancedMesh && !c.isSkinnedMesh) found.push(c); else if (deep) walk(c); } })(group);
+    const buckets = new Map(), tmp = new THREE.Matrix4();
+    for (const m of found) {
+      const src = m.geometry.index ? m.geometry.toNonIndexed() : m.geometry.clone();
+      tmp.multiplyMatrices(inv, m.matrixWorld);
+      src.applyMatrix4(tmp);
+      if (!buckets.has(m.material)) buckets.set(m.material, []);
+      buckets.get(m.material).push(src);
+      m.parent.remove(m);
+    }
+    for (const [material, geos] of buckets) {
+      let n = 0;
+      const withCol = geos.every((g) => g.attributes.color);
+      for (const g of geos) n += g.attributes.position.array.length;
+      const pos = new Float32Array(n), col = withCol ? new Float32Array(n) : null;
+      let off = 0;
+      for (const g of geos) { pos.set(g.attributes.position.array, off); if (col) col.set(g.attributes.color.array, off); off += g.attributes.position.array.length; }
+      const geo = new THREE.BufferGeometry();
+      geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+      if (col) geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
+      geo.computeVertexNormals();
+      geo.computeBoundingSphere();
+      const mesh = new THREE.Mesh(geo, material);
+      mesh.castShadow = SHADOWS; mesh.receiveShadow = SHADOWS;
+      group.add(mesh);
+    }
+  }
+  const GLOW = (() => {
+    const c = document.createElement('canvas');
+    c.width = c.height = 128;
+    const x = c.getContext('2d'), g = x.createRadialGradient(64, 64, 0, 64, 64, 64);
+    g.addColorStop(0, 'rgba(255,255,255,1)'); g.addColorStop(0.2, 'rgba(255,255,255,0.55)'); g.addColorStop(0.5, 'rgba(255,255,255,0.16)'); g.addColorStop(1, 'rgba(255,255,255,0)');
+    x.fillStyle = g; x.fillRect(0, 0, 128, 128);
+    return new THREE.CanvasTexture(c);
+  })();
+  function glow(parent, color, scale, opacity, x, y, z) {
+    const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: GLOW, color: lin(color), transparent: true, opacity, blending: THREE.AdditiveBlending, depthWrite: false }));
+    s.position.set(x, y, z);
+    s.scale.setScalar(scale);
+    parent.add(s);
+    return s;
+  }
+
+  const root = new THREE.Group();   // everything in the land
+  scene.add(root);
+  const world = new THREE.Group();  // static parts, merged once after the plug-ins have built
+  root.add(world);
+
+  // ---------- EDIT: the land ----------
+  // Heights from simple shapes, the way every scene so far has done it: a base slope, then max() of boxes, bumps and
+  // ridges for the things that stand up, then min() to carve channels, pools and paths. Keep every function cheap:
+  // it runs for every terrain vertex and every footstep. Water, if the scene has any, sits at WATER.level.
+  function box(x, z, x0, x1, z0, z1, h, edge) {
+    const dx = Math.max(x0 - x, 0, x - x1), dz = Math.max(z0 - z, 0, z - z1);
+    return h * smooth01(1 - Math.hypot(dx, dz) / edge);
+  }
+  const bump = (x, z, cx, cz, r, h) => { const d = Math.hypot(x - cx, z - cz) / r; return d >= 1 ? 0 : h * Math.pow(1 - d * d, 0.9); };
+  const WATER = { level: -9 };   // no water in this scene
+  // FIELD: every shared measurement of the battlefield (DESIGN.md 2), compressed: about 1,400 m between the ridge
+  // crests becomes about 71 m. x runs east (Confederates on the left, west; Union on the right, east), z runs south
+  // toward the camera. Every builder places things from here; if DESIGN.md's numbers differ, this block wins.
+  const FIELD = {
+    semX: -36,              // Seminary Ridge crest (the woods are west of it, x < -36)
+    woodsEdgeX: -34,        // the edge of the woods the Confederate lines step out of
+    csaGunX: -30,           // the Confederate gun line, in front of the woods
+    csaGunZ: [-26, 22],     // from the north end to the south end; 12 guns
+    swaleX: -4,             // the swale, a shallow dip about halfway across
+    roadX: (z) => 12 - 0.15 * z,   // the Emmitsburg Road, running SW to NE; post-and-rail fences 1.4 m either side
+    roadHalf: 1.1,
+    farm: [17, 8],          // a farm (house and bank barn) just east of the road
+    cemX: 35,               // Cemetery Ridge crest
+    // the stone wall: south part forward by the Copse, a right angle at the Angle, the north part set back
+    wall: [[29, 24], [29, -6], [33, -6], [33, -30]],
+    wallH: 0.7,
+    angle: [29, -6],
+    copse: [32.5, 0],       // the Copse of Trees, "the little group of trees", just behind the wall
+    unionGunX: 36.5,        // the Union gun line behind the wall; 8 guns
+    unionGunZ: [-24, 18],
+    vermont: [26, 20],      // Stannard's "bushy crest", in front of the Union left
+    gatling: [46, 8],       // behind the Union line; not really there (labelled)
+    haskell: [44, -3],      // Gibbon's staff lunch, behind the line
+    csaCamp: [-52, 0],      // camps in the woods behind Seminary Ridge
+    unionCamp: [54, -8],
+    unionFarmhouse: [56, 6],
+    littleRoundTop: [50, 36],
+    bigRoundTop: [64, 52],
+    culpsHill: [48, -46],
+    cemeteryHill: [32, -40],
+    lineZ: [-20, 18],       // the north and south ends of the Confederate front as it forms
+  };
+  function groundY(x, z) {
+    // long, gentle undulations of farm country
+    let h = 0.35 * Math.sin(x * 0.13 + 1.0) * Math.sin(z * 0.11 + 0.4) + 0.2 * Math.sin(z * 0.05 + x * 0.02);
+    // Seminary Ridge: a broad ridge on the west, wooded on top, its front slope easing down to the valley
+    h += 6.0 * smooth01(1 - Math.max(0, x - (FIELD.semX - 2)) / 24) - 1.2 * smooth01((FIELD.semX - 10 - x) / 22);
+    // Cemetery Ridge: a lower, gentle crest on the east, holding a little height behind it
+    h += x > FIELD.cemX ? 3.0 + 1.6 * smooth01(1 - (x - FIELD.cemX) / 18) : 4.6 * smooth01(1 - (FIELD.cemX - x) / 22);
+    // the swale halfway across, and the slight rise the road runs along
+    h -= 1.1 * smooth01(1 - Math.abs(x - FIELD.swaleX) / 7);
+    h += 0.6 * smooth01(1 - Math.abs(x - FIELD.roadX(z)) / 8);
+    // the hills: the Round Tops to the south-east, Culp's Hill and Cemetery Hill to the north-east (each capped)
+    const [lx, lz] = FIELD.littleRoundTop, [bx, bz] = FIELD.bigRoundTop, [cx, cz] = FIELD.culpsHill, [mx, mz] = FIELD.cemeteryHill;
+    h += bump(x, z, lx, lz, 14, 8) + bump(x, z, bx, bz, 19, 13) + bump(x, z, cx, cz, 15, 7) + bump(x, z, mx, mz, 13, 3);
+    return Math.min(h, 20);
+  }
+  // fields of wheat and pasture between the ridges (colour only), and the road
+  function fieldTone(x, z) {
+    if (x < FIELD.semX + 4 || x > FIELD.cemX - 3) return 0;
+    const a = Math.sin(x * 0.09 + 0.7) * Math.sin(z * 0.08 + 2.1) + 0.4 * Math.sin(x * 0.05 - z * 0.04);
+    return a > 0.45 ? 1 : a > 0.05 ? 0.5 : 0;
+  }
+
+  // The terrain mesh: a grid (finer in the middle where people walk), flat-shaded, coloured by height, slope and place.
+  const groundMat = new THREE.MeshStandardMaterial({ vertexColors: true, flatShading: true, roughness: 1 });
+  {
+    const xs = [], zs = [];
+    for (let x = -170; x < -72; x += 7) xs.push(x);
+    for (let x = -72; x < 74; x += 2.0) xs.push(x);
+    for (let x = 74; x <= 170; x += 7) xs.push(x);
+    for (let z = -150; z < -58; z += 7) zs.push(z);
+    for (let z = -58; z < 62; z += 2.0) zs.push(z);
+    for (let z = 62; z <= 130; z += 6) zs.push(z);
+    const NX = xs.length, NZ = zs.length, pos = new Float32Array(NX * NZ * 3), col = new Float32Array(NX * NZ * 3), idx = [];
+    const cGrass = lin(C.grass), cGrass2 = lin(C.grass2), cEarth = lin(C.earth), cRock = lin(C.rock), cRockSh = lin(C.rockShade), cSand = lin(C.sand), tmp = new THREE.Color();
+    const cWheat = lin(C.wheat), cDry = lin(C.dry), cRoad = lin(C.road), cWoods = lin(C.woodsDark);
+    for (let j = 0; j < NZ; j++) for (let i = 0; i < NX; i++) {
+      const x = xs[i], z = zs[j], k = (j * NX + i) * 3;
+      const y = groundY(x, z) + (hash(x, 0, z, 9) - 0.5) * 0.06;
+      pos[k] = x; pos[k + 1] = y; pos[k + 2] = z;
+      const patch = 0.5 + 0.5 * Math.sin(x * 0.19 + 1.7) * Math.sin(z * 0.15 + 0.3);
+      tmp.copy(cGrass).lerp(cGrass2, patch);
+      const ft = fieldTone(x, z);
+      if (ft > 0) tmp.lerp(ft > 0.75 ? cWheat : cDry, 0.75);
+      // the floor of the woods on Seminary Ridge is darker
+      if (x < FIELD.woodsEdgeX - 1) tmp.lerp(cWoods, 0.35 * smooth01((FIELD.woodsEdgeX - 1 - x) / 4));
+      tmp.lerp(cEarth, smooth01((y - 9) / 5) * 0.5);
+      const rd = Math.abs(x - FIELD.roadX(z));
+      if (rd < FIELD.roadHalf + 0.6) tmp.lerp(cRoad, 0.85);
+      col[k] = tmp.r; col[k + 1] = tmp.g; col[k + 2] = tmp.b;
+    }
+    for (let j = 0; j < NZ - 1; j++) for (let i = 0; i < NX - 1; i++) {
+      const a = j * NX + i, b = a + 1, c = a + NX, d = c + 1;
+      idx.push(a, c, b, b, c, d);
+    }
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+    g.setAttribute('color', new THREE.BufferAttribute(col, 3));
+    g.setIndex(idx);
+    // steep faces turn to bare rock
+    const ng = g.toNonIndexed();
+    ng.computeVertexNormals();
+    const n = ng.attributes.normal, cc = ng.attributes.color;
+    // bake slope shade: faces turned toward the south-west sun lighter, faces turned away darker, so gentle ridges read
+    const sunD = v(-0.6, 0.55, 0.45).normalize();
+    for (let i = 0; i < n.count; i++) {
+      const k2 = 0.78 + 0.5 * (n.getX(i) * sunD.x + n.getZ(i) * sunD.z) * 2.2 + 0.0 * n.getY(i);
+      const kk = Math.min(1.12, Math.max(0.7, k2 + 0.22));
+      cc.setXYZ(i, cc.getX(i) * kk, cc.getY(i) * kk, cc.getZ(i) * kk);
+    }
+    for (let i = 0; i < n.count; i++) {
+      const steep = smooth01((0.8 - n.getY(i)) * 5);
+      if (steep <= 0) continue;
+      tmp.setRGB(cc.getX(i), cc.getY(i), cc.getZ(i)).lerp(cRock.clone().lerp(cRockSh, 0.5 + 0.5 * Math.sin(i)), steep * 0.8);
+      cc.setXYZ(i, tmp.r, tmp.g, tmp.b);
+    }
+    // one flat colour per triangle (the average of its corners), for crisp low-poly patches instead of soft blends
+    for (let i = 0; i < cc.count; i += 3) {
+      const r = (cc.getX(i) + cc.getX(i + 1) + cc.getX(i + 2)) / 3, gg = (cc.getY(i) + cc.getY(i + 1) + cc.getY(i + 2)) / 3, bb = (cc.getZ(i) + cc.getZ(i + 1) + cc.getZ(i + 2)) / 3;
+      for (let k = 0; k < 3; k++) cc.setXYZ(i + k, r, gg, bb);
+    }
+    const ground = new THREE.Mesh(ng, groundMat);
+    ground.receiveShadow = SHADOWS;
+    ground.userData.dynamic = true;
+    world.add(ground);
+  }
+
+  // Far hills in a ring round the back, fading into the haze.
+  {
+    const pos = [], col = [], tmp = new THREE.Color(), base = lin(C.far), top = lin(C.far).lerp(new THREE.Color(1, 1, 1), 0.35);
+    [[190, 14, 26], [260, 22, 40]].forEach(([R, h0, h1], L2) => {
+      const pts = [];
+      for (let a = -1.9; a <= 1.9001; a += 0.14) pts.push([Math.sin(a) * R, h0 + (h1 - h0) * hash(a, L2, 3, 7), -20 - Math.cos(a) * R]);
+      for (let i = 0; i < pts.length - 1; i++) {
+        const [ax, ay, az] = pts[i], [bx, by, bz] = pts[i + 1];
+        for (const [x, y, z] of [[ax, ay, az], [bx, by, bz], [ax, -6, az], [bx, by, bz], [bx, -6, bz], [ax, -6, az]]) {
+          pos.push(x, y, z);
+          tmp.copy(base).lerp(top, smooth01(y / 40));
+          col.push(tmp.r, tmp.g, tmp.b);
+        }
+      }
+    });
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+    g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+    g.computeVertexNormals();
+    const m = new THREE.Mesh(g, new THREE.MeshStandardMaterial({ vertexColors: true, flatShading: true, roughness: 1, side: THREE.DoubleSide }));
+    m.userData.dynamic = true;
+    world.add(m);
+  }
+
+  // ---------- walking surfaces ----------
+  // Height to walk on: the ground, or anything a plug-in registers with ctx.addSurface (a function of x, z returning a
+  // height there, or null where it doesn't cover: a floor, a bridge deck, a flight of steps as a ramp).
+  const surfaces = [];
+  function surfaceY(x, z) {
+    let h = groundY(x, z);
+    for (const f of surfaces) { const y = f(x, z); if (y !== null && y !== undefined) h = Math.max(h, y); }
+    return h;
+  }
+
+  // ---------- EDIT: spots, the named places every plug-in agrees on (the scene's DESIGN.md has the table) ----------
+  const P = (x, z, lift = 0) => v(x, surfaceY(x, z) + lift, z);
+  const spots = {
+    FOCUS: v(2, 1.5, -2),
+    CENTER: P(0, 0),
+    WALL_ANGLE: P(FIELD.angle[0], FIELD.angle[1]),
+    COPSE: P(FIELD.copse[0], FIELD.copse[1]),
+    FARM: P(FIELD.farm[0], FIELD.farm[1]),
+    GATLING: P(FIELD.gatling[0], FIELD.gatling[1]),
+    HASKELL: P(FIELD.haskell[0], FIELD.haskell[1]),
+    CSA_CAMP: P(FIELD.csaCamp[0], FIELD.csaCamp[1]),
+    UNION_CAMP: P(FIELD.unionCamp[0], FIELD.unionCamp[1]),
+    UNION_FARMHOUSE: P(FIELD.unionFarmhouse[0], FIELD.unionFarmhouse[1]),
+    VERMONT: P(FIELD.vermont[0], FIELD.vermont[1]),
+    LITTLE_ROUND_TOP: P(FIELD.littleRoundTop[0], FIELD.littleRoundTop[1]),
+    BIG_ROUND_TOP: P(FIELD.bigRoundTop[0], FIELD.bigRoundTop[1]),
+    CULPS_HILL: P(FIELD.culpsHill[0], FIELD.culpsHill[1]),
+    CEMETERY_HILL: P(FIELD.cemeteryHill[0], FIELD.cemeteryHill[1]),
+    SWALE: P(FIELD.swaleX, 0),
+  };
+  // the gun positions, so the artillery, the crews and the smoke all agree: { x, z, y, face } (face = yaw, toward the enemy)
+  spots.CSA_GUNS = [];
+  for (let i = 0; i < 12; i++) { const z = lerpN(FIELD.csaGunZ[0], FIELD.csaGunZ[1], i / 11), x = FIELD.csaGunX + 0.8 * Math.sin(i * 1.7); spots.CSA_GUNS.push({ x, z, y: groundY(x, z), face: Math.PI / 2 }); }
+  spots.UNION_GUNS = [];
+  for (let i = 0; i < 8; i++) {
+    let z = lerpN(FIELD.unionGunZ[0], FIELD.unionGunZ[1], i / 7);
+    if (Math.abs(z - FIELD.copse[1]) < 3) z += 3.5 * Math.sign(z - FIELD.copse[1] || 1);   // leave the Copse clear
+    const x = FIELD.unionGunX + (z < FIELD.angle[1] ? 1.2 : 0);
+    spots.UNION_GUNS.push({ x, z, y: groundY(x, z), face: -Math.PI / 2 });
+  }
+
+  // ---------- sky: sun, moon and stars ride along with the camera ----------
+  const sky = new THREE.Group();
+  scene.add(sky);
+  function skyDir(azDeg, elDeg, dist) {
+    const az = azDeg * Math.PI / 180, el = elDeg * Math.PI / 180;
+    return v(Math.sin(az) * Math.cos(el) * dist, Math.sin(el) * dist, -Math.cos(az) * Math.cos(el) * dist);
+  }
+  const SUN = new THREE.Group();
+  SUN.userData.sun = true;
+  sky.add(SUN);
+  for (const sp of [glow(SUN, 0xffe0a8, 150, 0.32, 0, 0, 0), glow(SUN, 0xfff4d8, 46, 0.7, 0, 0, 0), glow(SUN, 0xffffff, 16, 0.9, 0, 0, 0)]) sp.material.fog = false;
+  {
+    const moon = new THREE.Mesh(new THREE.SphereGeometry(7, 18, 12), new THREE.MeshBasicMaterial({ color: lin(0xf4ecd4), fog: false }));
+    moon.position.copy(skyDir(40, 24, 320));
+    sky.add(moon);
+  }
+  const STARS = 320;
+  const starMat = new THREE.ShaderMaterial({
+    uniforms: { uTime: { value: 0 }, uPx: { value: 1 }, uFade: { value: 0 } },
+    vertexShader: 'attribute float aSize; attribute float aPhase; uniform float uTime; uniform float uPx; varying float vAlpha; void main() { gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); float tw = 0.55 + 0.45 * sin(uTime * (0.7 + aPhase * 0.8) + aPhase * 6.2831); vAlpha = tw; gl_PointSize = aSize * uPx * (0.75 + 0.25 * tw); }',
+    fragmentShader: 'varying float vAlpha; uniform float uFade; void main() { float d = length(gl_PointCoord - 0.5); float a = 1.0 - smoothstep(0.1, 0.5, d); gl_FragColor = vec4(vec3(1.0, 0.97, 0.88) * a * vAlpha * uFade, 1.0); }',
+    transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
+  });
+  {
+    const pos = new Float32Array(STARS * 3), size = new Float32Array(STARS), phase = new Float32Array(STARS);
+    for (let i = 0; i < STARS; i++) {
+      const p = skyDir(rr(-80, 80), 6 + 60 * Math.pow(rand(), 1.2), 340);
+      pos[i * 3] = p.x; pos[i * 3 + 1] = p.y; pos[i * 3 + 2] = p.z;
+      size[i] = rand() < 0.12 ? rr(3.2, 4.2) : rr(1.4, 2.8);
+      phase[i] = rand();
+    }
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+    g.setAttribute('aSize', new THREE.BufferAttribute(size, 1));
+    g.setAttribute('aPhase', new THREE.BufferAttribute(phase, 1));
+    const stars = new THREE.Points(g, starMat);
+    stars.frustumCulled = false;
+    sky.add(stars);
+  }
+  // a few soft clouds drifting high over the wilderness
+  const clouds = [];
+  {
+    const cm = new THREE.MeshStandardMaterial({ color: lin(0xfffaf0), flatShading: true, roughness: 1, emissive: lin(0x40403a), fog: false });
+    for (let i = 0; i < 6; i++) {
+      const g = new THREE.Group();
+      g.userData.dynamic = true;
+      const n = 4 + Math.floor(rand() * 3);
+      for (let k = 0; k < n; k++) add(g, new THREE.IcosahedronGeometry(rr(3, 5.5), 1), cm, rr(-9, 9), rr(-0.6, 2), rr(-3, 3), { s: [1.6, 0.55, 1], r: [rand(), rand(), rand()], noShadow: true });
+      mergeGroup(g, false);
+      g.position.set(-220 + i * 80 + rr(-15, 15), rr(60, 80), rr(-240, -160));
+      scene.add(g);
+      clouds.push({ g, mesh: g.children[0], speed: rr(0.8, 1.6) });
+    }
+  }
+
+  // ---------- lights (what the style study showed makes the blocky look work) ----------
+  const hemi = new THREE.HemisphereLight(0xdfe9ff, 0xc9b07a, 0.7);
+  scene.add(hemi);
+  const sunLight = new THREE.DirectionalLight(0xfff1d6, 1.35);
+  sunLight.target.position.set(0, 0, -4);
+  if (SHADOWS) {
+    sunLight.castShadow = true;
+    sunLight.shadow.mapSize.set(2048, 2048);
+    const sc = sunLight.shadow.camera;
+    sc.left = -60; sc.right = 60; sc.top = 60; sc.bottom = -60; sc.near = 5; sc.far = 200;
+    sunLight.shadow.bias = -0.0006;
+    sunLight.shadow.normalBias = 0.04;
+  }
+  scene.add(sunLight, sunLight.target);
+  const fill = new THREE.DirectionalLight(0xfff6ea, 0.25);
+  fill.position.set(10, 14, 60);
+  scene.add(fill);
+
+  // ---------- lamps: plug-ins place them with ctx.addLantern, the base draws all their glows at once ----------
+  const LANTERN_MAX = 80;
+  const lanterns = [];
+  const lanternGeo = new THREE.BufferGeometry();
+  lanternGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(LANTERN_MAX * 3), 3));
+  lanternGeo.setAttribute('aGlow', new THREE.BufferAttribute(new Float32Array(LANTERN_MAX), 1));
+  lanternGeo.setDrawRange(0, 0);
+  const lanternMat = new THREE.ShaderMaterial({
+    uniforms: { uScale: { value: 1 } },
+    vertexShader: 'attribute float aGlow; uniform float uScale; varying float vGlow; void main() { vGlow = aGlow; vec4 mv = modelViewMatrix * vec4(position, 1.0); gl_Position = projectionMatrix * mv; gl_PointSize = 1.3 * uScale / -mv.z; }',
+    fragmentShader: 'varying float vGlow; void main() { float d = length(gl_PointCoord - 0.5); float a = 1.0 - smoothstep(0.0, 0.5, d); float core = 1.0 - smoothstep(0.0, 0.12, d); gl_FragColor = vec4(mix(vec3(1.0, 0.72, 0.36), vec3(1.0, 0.95, 0.82), core) * a * a * vGlow, 1.0); }',
+    transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
+  });
+  const lanternPoints = new THREE.Points(lanternGeo, lanternMat);
+  lanternPoints.frustumCulled = false;
+  scene.add(lanternPoints);
+  function addLantern(pos) {
+    if (lanterns.length >= LANTERN_MAX) return -1;
+    const i = lanterns.length;
+    lanterns.push({ pos: pos.clone(), litAt: -1 });
+    lanternGeo.attributes.position.setXYZ(i, pos.x, pos.y, pos.z);
+    lanternGeo.attributes.position.needsUpdate = true;
+    lanternGeo.setDrawRange(0, lanterns.length);
+    return i;
+  }
+  function lightLantern(i) { if (lanterns[i]) lanterns[i].litAt = clock.elapsed; }
+
+  // ---------- soft round shadows under every figure and animal, all in one draw ----------
+  // ctx.blob(radius) → { set(x, y, z), hide() }: the shadow lies flat a hair above y.
+  const BLOB_MAX = 160;
+  const blobMesh = (() => {
+    const c = document.createElement('canvas'); c.width = c.height = 64;
+    const g = c.getContext('2d'), gr = g.createRadialGradient(32, 32, 2, 32, 32, 31);
+    gr.addColorStop(0, 'rgba(60,45,25,0.5)'); gr.addColorStop(1, 'rgba(60,45,25,0)');
+    g.fillStyle = gr; g.fillRect(0, 0, 64, 64);
+    const geo = new THREE.PlaneGeometry(2, 2); geo.rotateX(-Math.PI / 2);
+    const m = new THREE.InstancedMesh(geo, new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(c), transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, fog: false }), BLOB_MAX);
+    m.count = 0; m.frustumCulled = false; m.renderOrder = 1;
+    scene.add(m);
+    return m;
+  })();
+  const blobM = new THREE.Matrix4(), blobS = new THREE.Vector3(), blobQ = new THREE.Quaternion(), blobP = new THREE.Vector3();
+  function blob(r) {
+    if (blobMesh.count >= BLOB_MAX) return { set() {}, hide() {} };
+    const i = blobMesh.count++;
+    const h = {
+      r,
+      set(x, y, z, k) { blobMesh.setMatrixAt(i, blobM.compose(blobP.set(x, y + 0.03, z), blobQ, blobS.set(r * (k || 1), 1, r * 0.85 * (k || 1)))); blobMesh.instanceMatrix.needsUpdate = true; },
+      hide() { blobMesh.setMatrixAt(i, blobM.makeScale(0, 0, 0)); blobMesh.instanceMatrix.needsUpdate = true; },
+    };
+    h.hide();
+    return h;
+  }
+
+  // ---------- wind (trees and grass) and cloud shadows (terrain) ----------
+  const windUniform = { value: 0 }, gustUniform = { value: 0 }, cloudUniform = { value: 1 };
+  const wind = { dir: v(1, 0, -0.3).normalize(), strength: 0.6, gust: 0 };
+  // Plug-ins call ctx.addWind(material, amount) for things that should sway (amount ~0.01 to 0.04).
+  function addWind(m, amp) {
+    m.userData.windAmp = amp;
+    const prev = m.onBeforeCompile;
+    m.onBeforeCompile = (sh, r) => {
+      if (prev) prev.call(m, sh, r);
+      sh.uniforms.uWind = windUniform;
+      sh.uniforms.uGust = gustUniform;
+      sh.vertexShader = 'uniform float uWind;\nuniform float uGust;\n' + sh.vertexShader.replace('#include <begin_vertex>', [
+        '#include <begin_vertex>',
+        'float wh = clamp(transformed.y - 0.4, 0.0, 2.5);',
+        'float wa = ' + amp.toFixed(4) + ' * (1.0 + 2.5 * uGust);',
+        'transformed.x += sin(uWind * 1.1 + transformed.x * 0.35 + transformed.z * 0.25) * wa * wh + uGust * wa * 1.5 * wh;',
+        'transformed.z += cos(uWind * 0.9 + transformed.x * 0.3) * wa * 0.6 * wh;',
+      ].join('\n'));
+    };
+    m.needsUpdate = true;
+  }
+  // The ground carries drifting cloud shade.
+  {
+    groundMat.userData.cloud = 1;
+    groundMat.onBeforeCompile = (sh) => {
+      sh.uniforms.uWind = windUniform;
+      sh.uniforms.uCloud = cloudUniform;
+      sh.vertexShader = 'varying vec3 vWPos;\n' + sh.vertexShader.replace('#include <worldpos_vertex>', '#include <worldpos_vertex>\nvWPos = (modelMatrix * vec4(transformed, 1.0)).xyz;');
+      sh.fragmentShader = 'uniform float uWind;\nuniform float uCloud;\nvarying vec3 vWPos;\n' + sh.fragmentShader.replace('#include <dithering_fragment>', [
+        'vec2 cp = vWPos.xz * 0.04 + vec2(uWind * 0.04, uWind * 0.015);',
+        'float cn = sin(cp.x * 2.1) * sin(cp.y * 1.7 + 1.3) + 0.6 * sin(cp.x * 3.7 + cp.y * 2.3 + 2.0) + 0.35 * sin(cp.x * 6.1 - cp.y * 5.3);',
+        'gl_FragColor.rgb *= 1.0 - 0.06 * uCloud * smoothstep(0.35, 0.95, cn);',
+        'gl_FragColor.rgb *= 0.97 + 0.03 * sin(vWPos.x * 0.35 + sin(vWPos.z * 0.27)) * sin(vWPos.z * 0.41 + sin(vWPos.x * 0.19));',
+        '#include <dithering_fragment>',
+      ].join('\n'));
+    };
+  }
+  function addSkyFog(m) {
+    m.userData.skyFog = true;
+    const prev = m.onBeforeCompile;
+    m.onBeforeCompile = (sh, r) => {
+      if (prev) prev.call(m, sh, r);
+      sh.uniforms.uFogSky = FOGU.sky; sh.uniforms.uSunDir = FOGU.sunDir; sh.uniforms.uSunCol = FOGU.sunCol; sh.uniforms.uFogDens = FOGU.dens;
+      sh.fragmentShader = '#define SKY_FOG\n' + sh.fragmentShader;
+      sh.vertexShader = '#define SKY_FOG\n' + sh.vertexShader;
+    };
+    m.customProgramCacheKey = () => 'skyfog|' + (m.userData.windAmp || '') + '|' + (m.userData.cloud || '') + '|' + (m.userData.extraKey || '');
+    m.needsUpdate = true;
+  }
+  scene.fog = new THREE.Fog(0xe0d8c8, 140, 520);
+  sky.traverse((o) => { if (o.material) o.material.fog = false; });
+
+  // ---------- EDIT: the cycle and the time of day ----------
+  // 180 s by default: full day to 120 s, the sun going down to 145 s, dusk into a short blue night with stars to 172 s,
+  // dawn back to day by 180 s. light.day is 1 in full day, 0 at night. A scene can reshape dayAt.
+  const CYCLE = 180;
+  const cycle = { t: 0, n: 0, length: CYCLE };
+  const light = { day: 1 };
+  const lc = (a, b, k) => lin(a).lerp(lin(b), k);
+  const hexOf = (a, b, k) => '#' + new THREE.Color(a).lerp(new THREE.Color(b), k).getHexString();
+  function dayAt(tt) {
+    if (TIME === 'day') return 1;
+    if (TIME === 'dusk') return 0.35;
+    if (TIME === 'night') return 0;
+    // a long summer day (the cannonade and the charge are in daylight), a gold dusk after the walk back, a short night
+    const p = tt % CYCLE;
+    if (p < 136) return 1;
+    if (p < 154) return 1 - smooth01((p - 136) / 18);
+    if (p < 171) return 0;
+    return smooth01((p - 171) / 9);
+  }
+  let lastSkyK = -1;
+  function setLight(k) {
+    light.day = k;
+    // dusk is warm (k around 0.3-0.6), night blue (k near 0)
+    const warm = smooth01(1 - Math.abs(k - 0.4) / 0.4) * (k < 1 ? 1 : 0);
+    if (Math.abs(k - lastSkyK) > 0.008) {
+      paintSky(hexOf(0x141c42, 0x4f8fd0, k), hexOf(hexOf(0x2c3466, 0x8a6a9a, warm), '#a8cdea', k), hexOf(hexOf(0x3a3c66, 0xf0986a, warm), '#f3e2bf', k));
+      lastSkyK = k;
+    }
+    hemi.color.setHex(0x6a74b0).lerp(new THREE.Color(0xdfe9ff), k);
+    hemi.groundColor.setHex(0x3a3450).lerp(new THREE.Color(0xc9b07a), k);
+    hemi.intensity = 0.45 + 0.25 * k;
+    sunLight.color.setHex(0xff8a52).lerp(new THREE.Color(0xfff1d6), smooth01(k * 1.3 - 0.2));
+    sunLight.intensity = 0.2 + 1.15 * k;
+    sunLight.position.set(-42 - 10 * (1 - k), 6 + 34 * k, 22 + 14 * k);
+    fill.intensity = 0.32 - 0.07 * k;
+    scene.fog.color.copy(lc(0x6a5a80, 0xe0d8c8, k));
+    FOGU.sky.value.copy(lc(0x4a4070, 0xbcd4ea, k));
+    FOGU.sunCol.value.copy(lc(0xff7a3a, 0xffd9a0, k)).multiplyScalar(0.14 + 0.12 * k);
+    cloudUniform.value = k;
+    for (const c of clouds) c.mesh.material.color.copy(lc(0xd88a8a, 0xfffaf0, k));
+    starMat.uniforms.uFade.value = Math.max(0, 1 - k * 2.2);
+    SUN.position.copy(skyDir(-128 + 30 * (1 - k), 8 + 40 * k, 300));
+    for (const c of sky.children) if (c.type !== 'Points') c.visible = c.userData.sun ? k > 0.15 : k < 0.5;
+  }
+  setLight(dayAt(0));
+
+  // ---------- events: only one big moment at a time ----------
+  // ctx.events.request(name, seconds) returns true while it's that event's turn; release(name) ends it early.
+  const events = {
+    active: null, until: 0,
+    request(name, seconds) {
+      const now = clock.elapsed;
+      if (this.active && this.active !== name && now < this.until) return false;
+      if (this.active !== name || now >= this.until) { this.active = name; this.until = now + seconds; }
+      return true;
+    },
+    release(name) { if (this.active === name) this.active = null; },
+  };
+
+  // ---------- sound: cannon booms and musket crackle, made in the page (no files) ----------
+  // Browsers keep a page silent until someone taps, clicks or presses a key, so the sound starts then. ?sound=0 mutes.
+  // A boom is a low thump and a burst of filtered noise; it is quieter and duller the further it is from the camera.
+  const sound = (() => {
+    const off = params.get('sound') === '0' || params.has('capture');
+    let ac = null, noiseBuf = null, master = null, lastAt = 0, inWindow = 0;
+    function unlock() {
+      if (off || ac) { if (ac && ac.state === 'suspended') ac.resume(); return; }
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if (!AC) return;
+      ac = new AC();
+      master = ac.createGain(); master.gain.value = 0.55;
+      const comp = ac.createDynamicsCompressor(); comp.threshold.value = -16; comp.ratio.value = 6;
+      master.connect(comp); comp.connect(ac.destination);
+      noiseBuf = ac.createBuffer(1, ac.sampleRate * 2, ac.sampleRate);
+      const d = noiseBuf.getChannelData(0);
+      let b = 0;
+      for (let i = 0; i < d.length; i++) { b = 0.97 * b + 0.03 * (Math.random() * 2 - 1); d[i] = b * 6 + (Math.random() * 2 - 1) * 0.15; }
+    }
+    for (const ev of ['pointerdown', 'keydown', 'touchstart']) addEventListener(ev, unlock, { passive: true });
+    const tmpV = new THREE.Vector3();
+    function boom(x, y, z, size) {
+      if (!ac || ac.state !== 'running' || document.hidden) return;
+      const now = ac.currentTime;
+      // never more than a handful at once: a rolling cannonade, not a wall of noise
+      if (now - lastAt > 0.25) inWindow = 0;
+      if (inWindow >= 3) return;
+      inWindow++; lastAt = now;
+      const s = size || 1;
+      const dist = tmpV.set(x, y, z).distanceTo(camera.position);
+      const near = 1 / (1 + dist / 45);
+      tmpV.set(x, y, z).project(camera);
+      const pan = ac.createStereoPanner ? ac.createStereoPanner() : null;
+      if (pan) { pan.pan.value = Math.max(-0.8, Math.min(0.8, tmpV.x * 0.8)); pan.connect(master); }
+      const out = pan || master;
+      const delay = Math.min(0.35, dist / 340);   // sound arrives a little after the flash
+      // the thump
+      const o = ac.createOscillator(), og = ac.createGain();
+      o.type = 'sine';
+      o.frequency.setValueAtTime(s > 0.6 ? 70 : 140, now + delay);
+      o.frequency.exponentialRampToValueAtTime(s > 0.6 ? 32 : 60, now + delay + 0.5);
+      og.gain.setValueAtTime(0.0001, now + delay);
+      og.gain.exponentialRampToValueAtTime(0.9 * s * near + 0.0002, now + delay + 0.015);
+      og.gain.exponentialRampToValueAtTime(0.0001, now + delay + (s > 0.6 ? 1.1 : 0.35));
+      o.connect(og); og.connect(out);
+      o.start(now + delay); o.stop(now + delay + 1.3);
+      // the crack and rumble
+      const n = ac.createBufferSource(), f = ac.createBiquadFilter(), ng = ac.createGain();
+      n.buffer = noiseBuf; n.playbackRate.value = s > 0.6 ? 0.8 + Math.random() * 0.2 : 1.4 + Math.random() * 0.3;
+      f.type = 'lowpass'; f.frequency.value = (s > 0.6 ? 700 : 2200) * (0.4 + 0.6 * near);
+      ng.gain.setValueAtTime(0.0001, now + delay);
+      ng.gain.exponentialRampToValueAtTime(0.7 * s * near + 0.0002, now + delay + 0.01);
+      ng.gain.exponentialRampToValueAtTime(0.0001, now + delay + (s > 0.6 ? 1.8 : 0.45));
+      n.connect(f); f.connect(ng); ng.connect(out);
+      n.start(now + delay, Math.random() * 1.0); n.stop(now + delay + 2);
+    }
+    return { boom };
+  })();
+
+  // ---------- plug-ins ----------
+  const clock = { elapsed: Number(params.get('t0')) || 0 };
+  const plugins = [];
+  const names = [];
+  const ctx = {
+    THREE, scene, root, world, camera, renderer, C, TAU, v, rr, rand, mulberry32, hash, lin, smooth01, lerpN,
+    mat, basic, add, limb, jitterGeo, glow, mergeGroup, groundY, surfaceY,
+    WATER, FIELD, spots, light, cycle, wind, events, clock,
+    // sound: ctx.boom(x, y, z, size) for a cannon (size 1) or a musket volley (size ~0.3); silent until the first tap
+    boom: (x, y, z, size) => sound.boom(x, y, z, size),
+    addWind, addSkyFog, addLantern, lightLantern, lanterns, blob,
+    addSurface: (f) => surfaces.push(f),
+    addCamFloor: (f) => camFloors.push(f),
+    // People and animals: ctx.addName(name, () => headPosition, { kind, line, teach, onTap }). Places: ctx.addPlace(name,
+    // () => position, { kind, line, teach, r, onTap }), where r is the radius of the glow on the ground. Or by the key of
+    // an entry in labels.js: ctx.tag(key, getPos, { name, r, onTap }) (the entry says whether it's a person or a place).
+    // onTap(now) runs when the label opens: start a small scripted moment (a wave, a bow, a bird taking off) that plays
+    // for a few seconds and blends back into the timeline. Never more than that: no control, no spawning, no scores.
+    addName: (name, getHead, o) => names.push(Object.assign({ name, get: getHead, person: true }, o || {})),
+    addPlace: (name, getPos, o) => names.push(Object.assign({ name, get: getPos, person: false }, o || {})),
+    tag(key, getPos, o) {
+      const L = window.LABELS[key];
+      if (!L) { console.warn('no label ' + key); return; }
+      names.push(Object.assign({ name: L.name, kind: L.kind, line: L.line, teach: L.teach, get: getPos, person: L.type === 'person' }, o || {}));
+    },
+    // the shared figure kit (rivendell/council.js) and the blocky figures (characters/blocky.js)
+    figureKit: window.FigureKit, Blocky: window.Blocky,
+    // a line of text at the bottom of the screen for a big moment: blurb(text, reference, fromSeconds, toSeconds) in
+    // cycle time; plug-ins call it once in init
+    blurb: (text, ref, from, to) => blurbs.push({ text, ref, from, to }),
+  };
+  const blurbs = [];
+  ctx.floorY = surfaceY;
+  ctx.kit = window.FigureKit.makeKit(ctx, { detail: 1, outward: true });
+  window.Shire = {
+    ctx,
+    register(p) {
+      if (ONLY && !ONLY.includes(p.name)) return;
+      plugins.push(p);
+      try { if (p.init) p.init(ctx); } catch (e) { console.error('plug-in ' + p.name + ' failed to start', e); p.failed = true; }
+    },
+  };
+  window.Scene = window.Shire;
+
+  // ---------- sizing ----------
+  function resize() {
+    const w = innerWidth, h = innerHeight;
+    renderer.setSize(w, h);
+    camera.aspect = w / h;
+    camera.updateProjectionMatrix();
+    const px = h * RES / (2 * Math.tan(camera.fov * Math.PI / 360));
+    lanternMat.uniforms.uScale.value = px;
+    starMat.uniforms.uPx.value = Math.max(0.7, h / 1080);
+  }
+  addEventListener('resize', resize);
+  resize();
+
+  // ---------- EDIT: the camera: a slow arc round the focus, or the tour ----------
+  const TOUR_VIEWS = [
+    [v(2, 36, 78), v(2, 1, -4)],          // the whole field, from the south
+    [v(-14, 7, 14), v(-30, 3, -2)],       // the Confederate gun line in front of the woods
+    [v(-42, 9, 24), v(-52, 3, 0)],        // the camps in the woods on Seminary Ridge
+    [v(18, 7, 12), v(31, 2.4, -2)],       // the Copse of Trees and the stone wall at the Angle
+    [v(36, 12, 52), v(50, 6, 36)],        // the boulders on Little Round Top
+    [v(43, 5.6, 11), v(46, 4.9, 8)],          // the Gatling gun that wasn't there
+  ];
+  const camPos = v(0, 0, 0), camLook = v(0, 0, 0);
+  // The automatic camera can drift towards the cycle's big moments: return an offset for the focus at cycle time p.
+  // The automatic camera drifts with the story (DESIGN.md 3): the guns during the cannonade, the lines as they cross,
+  // the Copse at the wall, then wide again. Keys are blended with eased windows so it never jumps.
+  // Re-timed to the built scene: on the gun line for the signal gun (30), east enough at 50-62 to hold the farmhouse
+  // hit (56) with the Confederate guns, the lines as they form (82-96) and cross (92-128), the wall (126-137), the
+  // walk back to the woods (130-165), then the Union side for the fires and lanterns at night, and wide again by 180.
+  const CAM_KEYS = [
+    // [cycle s, focus x, focus z, extra distance]
+    [0, 2, -2, 0], [20, 2, -2, 0], [30, -14, -3, -8], [40, -16, -2, -12], [50, -7, -1, -9], [62, -7, -1, -9], [76, -14, -2, -10], [90, -22, -1, -14],
+    [108, 2, 0, -12], [124, 20, -1, -14], [134, 25, -2, -16], [146, 6, -2, -2], [156, -8, -2, -4], [165, 26, -3, -6], [170, 26, -3, -6], [180, 2, -2, 0],
+  ];
+  const afOut = { x: 0, y: 0, z: 0, d: 0 };
+  function autoFocus(t) {
+    const p = t % CYCLE;
+    let i = 0;
+    while (i < CAM_KEYS.length - 2 && CAM_KEYS[i + 1][0] <= p) i++;
+    const a = CAM_KEYS[i], b = CAM_KEYS[i + 1], k = easeInOut(clamp01((p - a[0]) / (b[0] - a[0])));
+    afOut.x = lerpN(a[1], b[1], k); afOut.z = lerpN(a[2], b[2], k); afOut.d = lerpN(a[3], b[3], k);
+    afOut.y = surfaceY(afOut.x, afOut.z) + 1.2;
+    return afOut;
+  }
+  function placeCamera(t) {
+    if (CAM) { camera.position.set(CAM[0], CAM[1], CAM[2]); camera.lookAt(CAM[3], CAM[4], CAM[5]); return; }
+    if (TOUR) {
+      const seg = 36, k = Math.floor(t / seg) % TOUR_VIEWS.length, local = t % seg;
+      const [p0, l0] = TOUR_VIEWS[k], [p1, l1] = TOUR_VIEWS[(k + 1) % TOUR_VIEWS.length];
+      const u = local < 29 ? 0 : easeInOut((local - 29) / 7);
+      const drift = Math.sin(local * 0.05) * 0.6;
+      camPos.copy(p0).lerp(p1, u).add(v(drift, drift * 0.3, 0));
+      camLook.copy(l0).lerp(l1, u);
+    } else {
+      // the wobble periods divide the 180 s cycle, so the camera is in the same place at 180 as at 0 (no pop at the seam)
+      const az = 0.42 * Math.sin(t * TAU / 360) + 0.04 * Math.sin(t * TAU / 45);
+      const f = autoFocus(t);
+      const dist = 64 + f.d + 3 * Math.sin(t * TAU / 90);
+      camPos.set(f.x + Math.sin(az * 0.6) * dist, f.y + dist * 0.72 + 1.5 * Math.sin(t * TAU / 72), f.z + Math.cos(az * 0.6) * dist * 0.92);
+      camLook.set(f.x, f.y, f.z - 4);
+    }
+    // Soldier's eye: the camera stands on the ground at a soldier's height (1.7 m) and looks where it's turned.
+    // It moves only the camera, never a person. After 90 s untouched it flies back up to the automatic view.
+    if (eye.on) {
+      if (performance.now() / 1000 - user.last > EYE_IDLE) setView('fly', true);
+      else {
+        camPos.set(eye.x, surfaceY(eye.x, eye.z) + 1.7, eye.z);
+        camLook.set(eye.x + Math.sin(eye.yaw) * Math.cos(eye.pitch) * 10, camPos.y + Math.sin(eye.pitch) * 10, eye.z + Math.cos(eye.yaw) * Math.cos(eye.pitch) * 10);
+      }
+    }
+    // If someone is steering, use their view; 10 s after they let go, ease back into the automatic camera.
+    if (user.on && !eye.on) {
+      const idle = performance.now() / 1000 - user.last;
+      user.target.x = Math.min(70, Math.max(-70, user.target.x));
+      user.target.z = Math.min(58, Math.max(-56, user.target.z));
+      user.target.y = Math.max(0.5, surfaceY(user.target.x, user.target.z) + 0.5);
+      const mine = v(Math.sin(user.az) * Math.cos(user.el), Math.sin(user.el), Math.cos(user.az) * Math.cos(user.el)).multiplyScalar(user.dist).add(user.target);
+      mine.x = Math.min(140, Math.max(-140, mine.x));
+      mine.z = Math.min(130, Math.max(-110, mine.z));
+      mine.y = Math.max(mine.y, camFloor(mine.x, mine.z), 0.8);
+      const k = idle < USER_IDLE ? 0 : easeInOut(Math.min(1, (idle - USER_IDLE) / USER_EASE));
+      camPos.lerpVectors(mine, camPos, k);
+      camLook.lerpVectors(user.target, camLook, k);
+      if (k >= 1) user.on = false;
+    }
+    // a smooth glide whenever the view button changes
+    const bk = (performance.now() / 1000 - viewBlend.t0) / 1.6;
+    if (bk < 1) { const e2 = easeInOut(clamp01(bk)); camPos.lerpVectors(viewBlend.pos, camPos, e2); camLook.lerpVectors(viewBlend.look, camLook, e2); }
+    // a wider lens at a soldier's height, eased with the glide
+    const wantFov = eye.on ? 62 : 40;
+    if (Math.abs(camera.fov - wantFov) > 0.05) { camera.fov += (wantFov - camera.fov) * 0.08; if (Math.abs(camera.fov - wantFov) <= 0.05) camera.fov = wantFov; resize(); }
+    camera.position.copy(camPos);
+    camera.lookAt(camLook);
+  }
+
+  // The lowest the steered camera may go at (x, z): above the ground, and above anything a plug-in registers with
+  // ctx.addCamFloor(f) (f(x, z) returns a height there, or null): roofs, walls, towers, so a pinch never lands inside one.
+  const camFloors = [];
+  function camFloor(x, z) {
+    let h = surfaceY(x, z) + 1.5;
+    for (const f of camFloors) { const y = f(x, z); if (y !== null && y !== undefined) h = Math.max(h, y); }
+    return h;
+  }
+
+  // ---------- steering: drag to look around, pinch or scroll to zoom, two fingers (or right-drag) to slide, arrow keys
+  // and + and -. 10 s after the last touch the camera eases back into its own drift (as in Rivendell).
+  const USER_IDLE = 10, USER_EASE = 3;
+  const user = { on: false, last: -1e9, az: 0, el: 0.4, dist: 40, target: v(0, 0, 0) };
+  function userStart() {
+    if (!user.on) {
+      user.target.copy(camLook);
+      const d = v(0, 0, 0).subVectors(camera.position, camLook);
+      user.dist = d.length();
+      user.az = Math.atan2(d.x, d.z);
+      user.el = Math.asin(Math.max(-1, Math.min(1, d.y / user.dist)));
+      user.on = true;
+    }
+    user.last = performance.now() / 1000;
+  }
+  const EYE_IDLE = 90;
+  // where Soldier's eye starts: on Cemetery Ridge behind the Union limbers (between the poles of guns 5 and 6, clear of
+  // Hunt's ride between the guns and the limbers), south of the Copse, looking west across the fields
+  const eye = { on: false, x: 43.2, z: 9, yaw: -Math.PI / 2, pitch: 0.02 };
+  const viewBlend = { t0: -99, pos: v(0, 0, 0), look: v(0, 0, 0) };
+  const btnFly = document.getElementById('vFly'), btnEye = document.getElementById('vEye'), hintEl = document.getElementById('viewhint');
+  let hintTimer = null;
+  function hint(text) {
+    hintEl.textContent = text; hintEl.style.opacity = 1;
+    clearTimeout(hintTimer); hintTimer = setTimeout(() => { hintEl.style.opacity = 0; }, 5000);
+  }
+  function setView(mode, quiet) {
+    viewBlend.t0 = performance.now() / 1000; viewBlend.pos.copy(camera.position); viewBlend.look.copy(camLook);
+    eye.on = mode === 'eye';
+    btnEye.classList.toggle('on', eye.on); btnFly.classList.toggle('on', !eye.on);
+    if (eye.on) {
+      user.on = true; user.last = performance.now() / 1000;
+      if (!quiet) hint('Drag to look around · arrow keys or two fingers to walk');
+    } else {
+      // fly up over where the soldier's eye was, then drift back into the automatic view
+      user.on = !quiet; user.last = performance.now() / 1000;
+      user.target.set(eye.x, surfaceY(eye.x, eye.z), eye.z);
+      user.dist = 60; user.az = Math.PI * 0.05; user.el = 0.78;
+      if (!quiet) hint('Drag to look around · pinch or scroll to zoom');
+    }
+  }
+  btnFly.addEventListener('click', () => setView('fly'));
+  btnEye.addEventListener('click', () => setView('eye'));
+  // ?view=eye starts in Soldier's eye (?eye=x,z,yawDegrees picks the spot), for checking and for showing a view
+  if (params.get('view') === 'eye') {
+    if (params.has('eye')) { const [ex, ez, ey] = params.get('eye').split(',').map(Number); eye.x = ex; eye.z = ez; if (!isNaN(ey)) eye.yaw = ey * Math.PI / 180; }
+    eye.on = true; user.on = true; user.last = 1e12; btnEye.classList.add('on'); btnFly.classList.remove('on');
+  }
+  if (CAM || TOUR || params.has('capture') || params.get('buttons') === '0') document.getElementById('views').style.display = 'none';
+  // walk the soldier's-eye camera: forward/back and sideways in metres, never into a building or off the field
+  function eyeMove(fwd, side) {
+    const nx = eye.x + Math.sin(eye.yaw) * fwd + Math.cos(eye.yaw) * side, nz = eye.z + Math.cos(eye.yaw) * fwd - Math.sin(eye.yaw) * side;
+    if (Math.abs(nx) > 78 || Math.abs(nz) > 64) return;
+    if (camFloor(nx, nz) > surfaceY(nx, nz) + 2.2) return;   // a roof is registered here: a building
+    eye.x = nx; eye.z = nz;
+  }
+  function slide(dx, dy) {
+    const k = user.dist * 0.0015;
+    user.target.x += -dx * k * Math.cos(user.az) - dy * k * Math.sin(user.az);
+    user.target.z += dx * k * Math.sin(user.az) - dy * k * Math.cos(user.az);
+  }
+  {
+    const dom = renderer.domElement;
+    dom.style.touchAction = 'none';
+    const pts = new Map();
+    let pinch = null;
+    const two = () => { const [a, b] = [...pts.values()]; return { d: Math.hypot(a.x - b.x, a.y - b.y), mx: (a.x + b.x) / 2, my: (a.y + b.y) / 2 }; };
+    let tapStart = null;
+    dom.addEventListener('pointerdown', (e) => {
+      tapStart = pts.size === 0 ? { x: e.clientX, y: e.clientY, t: performance.now() } : null;
+      userStart();
+      pts.set(e.pointerId, { x: e.clientX, y: e.clientY, pan: e.button === 2 || e.shiftKey });
+      dom.setPointerCapture(e.pointerId);
+      if (pts.size === 2) { const g = two(); pinch = { d: g.d, mx: g.mx, my: g.my, dist: user.dist }; }
+    });
+    dom.addEventListener('pointermove', (e) => {
+      const p0 = pts.get(e.pointerId);
+      if (!p0) return;
+      userStart();
+      const dx = e.clientX - p0.x, dy = e.clientY - p0.y;
+      p0.x = e.clientX; p0.y = e.clientY;
+      if (eye.on) {
+        if (pts.size >= 2 && pinch) {
+          const g = two();
+          eyeMove((g.d - pinch.d) * 0.03 - (g.my - pinch.my) * 0.04, -(g.mx - pinch.mx) * 0.03);
+          pinch.d = g.d; pinch.mx = g.mx; pinch.my = g.my;
+        } else if (p0.pan) eyeMove(-dy * 0.04, -dx * 0.03);
+        else { eye.yaw += dx * 0.004; eye.pitch = Math.min(1.1, Math.max(-0.7, eye.pitch + dy * 0.003)); }
+      } else if (pts.size >= 2 && pinch) {
+        const g = two();
+        user.dist = Math.min(150, Math.max(4, pinch.dist * pinch.d / Math.max(20, g.d)));
+        slide(g.mx - pinch.mx, g.my - pinch.my);
+        pinch.mx = g.mx; pinch.my = g.my;
+      } else if (p0.pan) slide(dx, dy);
+      else { user.az -= dx * 0.0028; user.el = Math.min(1.35, Math.max(0.03, user.el + dy * 0.0025)); }
+    });
+    const end = (e) => {
+      if (tapStart && pts.size === 1 && Math.hypot(e.clientX - tapStart.x, e.clientY - tapStart.y) < 12 && performance.now() - tapStart.t < 450) tapAt(e.clientX, e.clientY);
+      tapStart = null;
+      pts.delete(e.pointerId);
+      if (pts.size < 2) pinch = null;
+    };
+    dom.addEventListener('pointerup', end);
+    dom.addEventListener('pointercancel', end);
+    dom.addEventListener('contextmenu', (e) => e.preventDefault());
+    dom.addEventListener('wheel', (e) => {
+      e.preventDefault();
+      userStart();
+      if (eye.on) { eyeMove(-e.deltaY * 0.02, 0); return; }
+      user.dist = Math.min(150, Math.max(4, user.dist * Math.exp(e.deltaY * (e.ctrlKey ? 0.01 : 0.0012))));
+    }, { passive: false });
+    addEventListener('keydown', (e) => {
+      const eyeKeys = { ArrowLeft: () => (eye.yaw += 0.08), ArrowRight: () => (eye.yaw -= 0.08), ArrowUp: () => eyeMove(0.7, 0), ArrowDown: () => eyeMove(-0.7, 0), '+': () => (eye.pitch = Math.min(1.1, eye.pitch + 0.05)), '=': () => (eye.pitch = Math.min(1.1, eye.pitch + 0.05)), '-': () => (eye.pitch = Math.max(-0.7, eye.pitch - 0.05)) };
+      if (eye.on && eyeKeys[e.key]) { userStart(); eyeKeys[e.key](); return; }
+      const keys = { ArrowLeft: () => (user.az += 0.08), ArrowRight: () => (user.az -= 0.08), ArrowUp: () => (user.el = Math.min(1.35, user.el + 0.05)), ArrowDown: () => (user.el = Math.max(0.03, user.el - 0.05)), '+': () => (user.dist *= 0.9), '=': () => (user.dist *= 0.9), '-': () => (user.dist *= 1.1) };
+      if (!keys[e.key]) return;
+      userStart();
+      keys[e.key]();
+    });
+  }
+
+  // ---------- tap a person, a building or a place to see what it is ----------
+  // A label floats over it for 8 s (people) with what they are, their name and a line of scripture; a place also gets
+  // a soft glow on the ground at its foot for 3 s. A tap aims at faces; people win over places when both are close;
+  // tapping the same spot again steps to the next thing there. A label can also start a small tapped moment (onTap).
+  const tag = document.getElementById('nametag'), tagN = tag.querySelector('.n'), tagR = tag.querySelector('.r'), tagT = tag.querySelector('.t'), tagK = tag.querySelector('.kind');
+  let shown = null, shownUntil = 0;
+  const proj = new THREE.Vector3();
+  function toScreen(p) { proj.copy(p).project(camera); return proj.z < 1 && proj.z > -1 ? { x: (proj.x + 1) / 2 * innerWidth, y: (1 - proj.y) / 2 * innerHeight } : null; }
+  const ring = (() => {
+    const c = document.createElement('canvas'); c.width = c.height = 128;
+    const g = c.getContext('2d'), gr = g.createRadialGradient(64, 64, 10, 64, 64, 63);
+    gr.addColorStop(0, 'rgba(255,236,170,0)'); gr.addColorStop(0.62, 'rgba(255,236,170,0.55)'); gr.addColorStop(0.78, 'rgba(255,246,210,0.9)'); gr.addColorStop(1, 'rgba(255,236,170,0)');
+    g.fillStyle = gr; g.fillRect(0, 0, 128, 128);
+    const geo = new THREE.PlaneGeometry(2, 2); geo.rotateX(-Math.PI / 2);
+    const m = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(c), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, fog: false }));
+    m.visible = false; m.renderOrder = 2;
+    scene.add(m);
+    return m;
+  })();
+  let ringUntil = 0;
+  let lastTap = null;
+  function tapAt(x, y) {
+    const reach = Math.max(70, innerHeight * 0.07), near = [];
+    for (const c of names) {
+      let p;
+      try { p = c.get(); } catch (e) { continue; }
+      if (!p) continue;
+      let d = Infinity;
+      if (c.person) {
+        // the whole figure counts, from the face down to the feet (a tap nearer the face wins ties), so a tap on the
+        // body works when the camera is in close
+        const s = c.scale || 1, a = toScreen(proj.set(p.x, p.y - 0.2 * s, p.z));
+        const b = toScreen(proj.set(p.x, p.y - 1.6 * s, p.z));
+        if (a && b) {
+          const ex = b.x - a.x, ey = b.y - a.y, len = Math.hypot(ex, ey) || 1;
+          const u = Math.max(0, Math.min(1, ((x - a.x) * ex + (y - a.y) * ey) / (len * len)));
+          d = Math.hypot(x - a.x - ex * u, y - a.y - ey * u) + 20 * u - Math.min(0.3 * len, 120);
+        }
+      } else {
+        const sp = toScreen(p);
+        // places are big: they count from further, but people standing near win
+        if (sp) d = Math.hypot(sp.x - x, sp.y - y) * 0.6 + 34;
+      }
+      if (d < reach * (c.person ? 1 : 2.2)) near.push({ c, d });
+    }
+    if (!near.length) return;
+    near.sort((a, b) => a.d - b.d);
+    const now = performance.now() / 1000;
+    const again = lastTap && now < shownUntil && Math.hypot(x - lastTap.x, y - lastTap.y) < 20;
+    const i = again ? near.findIndex((n) => n.c === shown) : -1;
+    const best = near[(i + 1) % near.length].c;
+    lastTap = { x, y };
+    shown = best;
+    shownUntil = now + 8;
+    tagN.textContent = best.name;
+    tagK.textContent = best.kind || '';
+    tagK.style.display = best.kind ? 'block' : 'none';
+    tagR.textContent = best.line || '';
+    tagR.style.display = best.line ? 'block' : 'none';
+    tagT.textContent = best.teach || '';
+    tagT.style.display = best.teach ? 'block' : 'none';
+    if (best.onTap) { try { best.onTap(clock.elapsed); } catch (e) { console.error(e); } }
+    if (!best.person) {
+      const p = best.get(), r = best.r || 2.2;
+      ring.position.set(p.x, (best.ringY !== undefined ? best.ringY : surfaceY(p.x, p.z)) + 0.08, p.z);
+      ring.scale.setScalar(r);
+      ringUntil = now + 3;
+    }
+  }
+  window.__tapAt = tapAt;
+  window.__view = { setView, eye, eyeMove };
+  window.__names = names;
+  function placeTag() {
+    const now = performance.now() / 1000;
+    ring.visible = now < ringUntil;
+    if (ring.visible) ring.material.opacity = Math.min(1, (ringUntil - now) / 0.6) * (0.75 + 0.25 * Math.sin(now * 5));
+    if (!shown || now > shownUntil) { tag.style.opacity = 0; return; }
+    let p;
+    try { p = shown.get(); } catch (e) { p = null; }
+    const sp = p && toScreen(proj.set(p.x, p.y + (shown.person ? 0.35 : 0.6), p.z));
+    if (!sp) { tag.style.opacity = 0; return; }
+    tag.style.left = Math.min(innerWidth - 120, Math.max(120, sp.x)) + 'px';
+    tag.style.top = Math.max(150, sp.y) + 'px';
+    tag.style.opacity = now > shownUntil - 0.5 ? 0 : 1;
+  }
+
+  // ---------- the story panel (labels.js STORY): the day's chapters at the top left ----------
+  // Each chapter is marked past, happening now or still to come; the ones happening now open to show their two
+  // sentences and scripture (at most two, the most recently started). A thin line shows how far the day has gone.
+  // Tapping a chapter moves the clock to its start: everything is a function of the cycle time, so it all follows.
+  // The fold button keeps just the title and the current chapter (the default on narrow screens); ?toc=0 hides it.
+  const storyEl = document.getElementById('story');
+  const storyItems = [];
+  let storyKey = -1;
+  {
+    const chapters = Array.isArray(window.STORY) ? window.STORY : [];
+    const list = storyEl.querySelector('ol');
+    const jumpTo = (ch) => {
+      clock.elapsed = Math.floor(clock.elapsed / CYCLE) * CYCLE + ch.from;
+      events.active = null; events.until = 0;
+    };
+    for (const ch of chapters) {
+      const li = document.createElement('li');
+      li.className = 'future';
+      li.innerHTML = '<div><div class="row"><span class="dot"></span><span class="title"></span><div class="more"><div><p class="text"></p><p class="ref"></p></div></div></div></div>';
+      li.querySelector('.title').textContent = ch.title;
+      li.querySelector('.text').textContent = ch.text || '';
+      li.querySelector('.ref').textContent = ch.ref || '';
+      li.addEventListener('click', () => jumpTo(ch));
+      list.appendChild(li);
+      storyItems.push({ ch, li, state: '' });
+    }
+    const toggle = () => storyEl.classList.toggle('closed');
+    storyEl.querySelector('.fold').addEventListener('click', (e) => { e.stopPropagation(); toggle(); });
+    storyEl.querySelector('.head').addEventListener('click', toggle);
+    if (innerWidth < 900) storyEl.classList.add('closed');
+    storyEl.hidden = params.get('toc') === '0' || !chapters.length;
+  }
+  const storyBar = storyEl.querySelector('.bar i');
+  let storyBarK = -1;
+  function placeStory(t) {
+    if (storyEl.hidden) return;
+    const p = t % CYCLE;
+    const bk = Math.round(p / CYCLE * 800);
+    if (bk !== storyBarK) { storyBarK = bk; storyBar.style.transform = 'scaleX(' + (bk / 800).toFixed(4) + ')'; }
+    // one number says which chapters are past, now or to come and which two are open; nothing changes until it does
+    let key = 0, lead = null, second = null;
+    for (const it of storyItems) {
+      const c = it.ch, now = p >= c.from && p < c.to;
+      it.state = now ? 'now' : p >= c.to ? 'past' : 'future';
+      key = key * 3 + (now ? 2 : p >= c.to ? 1 : 0);
+      // the two open chapters: of those happening now, the two that started last (the list keeps its order)
+      if (now) { if (!lead || c.from >= lead.ch.from) { second = lead; lead = it; } else if (!second || c.from >= second.ch.from) second = it; }
+    }
+    key = key * 256 + (lead ? storyItems.indexOf(lead) + 1 : 0) * 16 + (second ? storyItems.indexOf(second) + 1 : 0);
+    if (key === storyKey) return;
+    storyKey = key;
+    for (const it of storyItems) it.li.className = it.state + (it === lead || it === second ? ' open' : '') + (it === lead ? ' lead' : '');
+  }
+  window.__story = { items: storyItems, el: storyEl };
+
+  // ---------- the frame loop ----------
+  const fpsEl = document.getElementById('fps'), blurbEl = document.getElementById('blurb');
+  const sunTmp = new THREE.Vector3();
+  let last = performance.now(), fpsFrames = 0, fpsTime = 0, rafId = null, frameNo = 0, merged = false;
+  const CAPTURE = params.has('capture');
+  function frame() {
+    if (!CAPTURE) rafId = requestAnimationFrame(frame);
+    const now = performance.now();
+    const dt = CAPTURE ? 1 / 30 : Math.min((now - last) / 1000, 0.1);
+    last = now;
+    clock.elapsed += dt;
+    const t = clock.elapsed;
+    cycle.t = t % CYCLE;
+    cycle.n = Math.floor(t / CYCLE);
+
+    // on the first frame: merge the static world (the plug-ins have built by now)
+    if (!merged) {
+      merged = true;
+      mergeGroup(world, true);
+    }
+
+    placeCamera(t);
+    sky.position.copy(camera.position);
+    starMat.uniforms.uTime.value = t;
+    SUN.getWorldPosition(sunTmp);
+    FOGU.sunDir.value.copy(sunTmp.sub(camera.position)).normalize();
+    setLight(dayAt(t));
+
+    // a blurb at the bottom of the screen while its moment lasts
+    {
+      const p = t % CYCLE;
+      let b = 0;
+      for (const B of blurbs) {
+        const k = TIME === 'cycle' ? smooth01((p - B.from) / 1.2) * (1 - smooth01((p - (B.to - 1.5)) / 1.5)) : 0;
+        if (k > b) { b = k; if (blurbEl.dataset.text !== B.text) { blurbEl.dataset.text = B.text; blurbEl.firstChild.textContent = B.text; blurbEl.lastChild.textContent = B.ref || ''; } }
+      }
+      blurbEl.style.opacity = b.toFixed(3);
+    }
+
+    // wind: a steady breeze, and a gust now and then
+    windUniform.value = t;
+    const gp = (t % 120 - 62) / 7;
+    wind.gust = gp > 0 && gp < 1 ? Math.sin(Math.PI * gp) : 0;
+    gustUniform.value = wind.gust;
+    wind.strength = 0.6 + 0.6 * wind.gust;
+    for (const c of clouds) { c.g.position.x += c.speed * dt; if (c.g.position.x > 280) c.g.position.x = -280; }
+
+    // lamps: on from dusk until the morning; one lit early (ctx.lightLantern) stays on
+    {
+      const night = smooth01((0.75 - light.day) / 0.4), a = lanternGeo.attributes.aGlow;
+      for (let i = 0; i < lanterns.length; i++) {
+        const L = lanterns[i];
+        if (L.litAt >= 0 && light.day > 0.95 && t - L.litAt > 60) L.litAt = -1;
+        const early = L.litAt >= 0 ? smooth01((t - L.litAt) / 0.8) : 0;
+        a.array[i] = Math.max(night, early) * (0.85 + 0.15 * Math.sin(t * 7 + i * 1.7));
+      }
+      a.needsUpdate = true;
+    }
+
+    for (const p of plugins) {
+      if (p.failed || !p.update) continue;
+      try { p.update(t, dt, ctx); } catch (e) { console.error('plug-in ' + p.name + ' failed', e); p.failed = true; }
+    }
+
+    // give every lit mesh material the sky haze, including ones the plug-ins create later
+    if (frameNo++ % 120 === 0) scene.traverse((o) => {
+      const m = o.material;
+      if (!o.isMesh || !m || Array.isArray(m) || m.userData.skyFog || m.fog === false || m.isShaderMaterial || m.isMeshBasicMaterial) return;
+      addSkyFog(m);
+    });
+
+    renderer.render(scene, camera);
+    placeTag();
+    placeStory(t);
+
+    fpsFrames++;
+    fpsTime += dt;
+    if (fpsTime >= 0.5) {
+      const info = renderer.info.render;
+      fpsEl.textContent = Math.round(fpsFrames / fpsTime) + ' fps · ' + info.calls + ' draws · ' + (info.triangles / 1000).toFixed(1) + 'k tris · ' + cycle.t.toFixed(0) + ' s';
+      fpsFrames = 0; fpsTime = 0;
+    }
+  }
+  if (CAPTURE) window.__capture = () => { frame(); return renderer.domElement.toDataURL('image/jpeg', 0.93); };
+  window.__frame = frame;
+  // Start only once every plug-in's script has loaded and built: the first frame merges the static world, so a frame
+  // drawn earlier (any real network) leaves the plug-ins' scenery unmerged and anything meant to be hidden showing,
+  // flickering against what covers it. Headless checks step the clock after load and never see this.
+  let loaded = document.readyState === 'complete';
+  const start = () => { if (!CAPTURE && !document.hidden && rafId === null) { last = performance.now(); rafId = requestAnimationFrame(frame); } };
+  if (!loaded) addEventListener('load', () => { loaded = true; start(); });
+  document.addEventListener('visibilitychange', () => {
+    if (CAPTURE) return;
+    if (document.hidden) { if (rafId !== null) cancelAnimationFrame(rafId); rafId = null; }
+    else if (loaded) start();
+  });
+  if (loaded) start();
+})();
+</script>
+<!-- the scene's plug-ins, one file each -->
+<script src="land.js"></script>
+<script src="buildings.js"></script>
+<script src="artillery.js"></script>
+<script src="people.js"></script>
+<script src="armies.js"></script>
+</body>
+</html>
